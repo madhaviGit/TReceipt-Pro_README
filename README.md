@@ -9,7 +9,7 @@ A Flutter app for scanning, managing, and exporting receipts — with AI-powered
 ## Features
 
 - **Receipt scanning** — camera capture or gallery import (JPEG / PDF)
-- **AI extraction** — Cloud Function OCR pipeline extracts seller, date, amount, VAT, items, and Elster tax line
+- **AI extraction** — Cloud Function OCR pipeline extracts seller, date, amount, items
 - **Scan balance** — credit-based system; zero balance gates the scanner and redirects to pricing
 - **Receipts overview** — monthly grouping, section filtering by Elster / category, image thumbnails
 - **Excel export** — standard export (`excel_file_service`) and tax-optimised Elster export (`tax_excel_service`) via Syncfusion

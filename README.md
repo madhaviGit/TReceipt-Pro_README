@@ -1,4 +1,3 @@
-<img width="806" height="1795" alt="WhatsApp Image 2026-04-23 at 19 42 05" src="https://github.com/user-attachments/assets/9fd369b1-3802-4331-a374-fc5698c98c07" />
 # TReceipts Pro
 
 A Flutter app for scanning, managing, and exporting receipts — with AI-powered OCR via Firebase Cloud Functions and built-in German tax (Elster) categorisation.

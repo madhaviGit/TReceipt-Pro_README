@@ -2,18 +2,20 @@
 
 A Flutter app for scanning, managing, and exporting receipts — with AI-powered OCR via Firebase Cloud Functions and built-in German tax (Elster) categorisation.
 
-**Version:** 1.0.35 (build 36) · **Platforms:** Android, iOS · **Languages:** English, German
+**Version:** 1.0.39 · **Platforms:** Android, iOS · **Languages:** English, German
 
 ---
 
 ## Features
 
 - **Receipt scanning** — camera capture or gallery import (JPEG / PDF)
-- **AI extraction** — Cloud Function OCR pipeline extracts seller, date, amount, items
+- **AI extraction** — Cloud Function OCR pipeline extracts seller, date, amount, VAT, items, and Elster tax line
 - **Scan balance** — credit-based system; zero balance gates the scanner and redirects to pricing
 - **Receipts overview** — monthly grouping, section filtering by Elster / category, image thumbnails
-- **Excel export** — standard export (`excel_file_service`) and tax-optimised Elster export (`tax_excel_service`) via Syncfusion
-- **In-app purchases** — Google Play Billing integration with pending-purchase detection
+- **Excel export** — standard export (`excel_file_service`) and tax-optimised Elster export (`tax_excel_service`) via Syncfusion; export bottom sheet supports year filtering and tax profile selection
+- **In-app purchases** — Google Play Billing integration with pending-purchase detection; total amount spent on scan plans tracked in Firestore (`credits/current.totalAmountSpent`) and incremented atomically inside `verifyPurchase` / `pollPendingPurchase` Cloud Functions
+- **Home dashboard** — spending bar chart (`fl_chart`) with dashed annual budget line, human-readable Y-axis intervals via `niceChartInterval` (`core/utils/chart_utils.dart`), and a tappable budget label that opens `BudgetInputBottomSheet` inline
+- **User profile** — scan plan card shows scans used / total / remaining + total spend on plans; profile stat box surfaces `totalAmountSpent` as *Total Scan Cost*; budget value in the chart header is tappable and opens the same `BudgetInputBottomSheet` as the settings card
 - **Authentication** — Google Sign-In (Android), Sign In with Apple (iOS)
 - **Theme** — light / dark mode toggle, persisted via Riverpod
 - **Localisation** — English and German (`flutter gen-l10n`)
@@ -22,20 +24,20 @@ A Flutter app for scanning, managing, and exporting receipts — with AI-powered
 
 ## Tech Stack
 
-| Concern | Package |
-| --- | --- |
-| State management | `flutter_bloc 9.1.1`, `flutter_riverpod 3.2.1` |
-| Navigation | `go_router 17.1.0` |
-| Dependency injection | `get_it 9.2.1` |
-| Firebase | core, auth, firestore, storage, functions, messaging, crashlytics, analytics, performance, remote\_config, app\_check |
-| Networking | `dio 5.9.2` with `RetryInterceptor` (3 retries) |
-| Image | `camera 0.12.0`, `image_picker 1.2.1`, `flutter_image_compress 2.4.0` |
-| In-app purchase | `in_app_purchase 3.2.3` |
-| Persistence | `hive 2.2.3`, `shared_preferences 2.5.4` |
-| Excel | `syncfusion_flutter_xlsio 32.2.7` |
-| Connectivity | `connectivity_plus 6.1.5`, `internet_connection_checker 3.0.1` |
-| Charts | `fl_chart 1.1.1` |
-| Auth | `google_sign_in 7.2.0`, `sign_in_with_apple 7.0.1` |
+| Concern              | Package                                                                                                               |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------|
+| State management     | `flutter_bloc 9.1.1`, `flutter_riverpod 3.2.1`                                                                        |
+| Navigation           | `go_router 17.1.0`                                                                                                    |
+| Dependency injection | `get_it 9.2.1`                                                                                                        |
+| Firebase             | core, auth, firestore, storage, functions, messaging, crashlytics, analytics, performance, remote\_config, app\_check |
+| Networking           | `dio 5.9.2` with `RetryInterceptor` (3 retries)                                                                       |
+| Image                | `camera 0.12.0`, `image_picker 1.2.1`, `flutter_image_compress 2.4.0`                                                 |
+| In-app purchase      | `in_app_purchase 3.2.3`                                                                                               |
+| Persistence          | `hive 2.2.3`, `shared_preferences 2.5.4`                                                                              |
+| Excel                | `syncfusion_flutter_xlsio 32.2.7`                                                                                     |
+| Connectivity         | `connectivity_plus 6.1.5`, `internet_connection_checker 3.0.1`                                                        |
+| Charts               | `fl_chart 1.1.1`                                                                                                      |
+| Auth                 | `google_sign_in 7.2.0`, `sign_in_with_apple 7.0.1`                                                                    |
 
 ---
 
@@ -54,7 +56,7 @@ lib/
 │   ├── services/           # ApiService, FirestoreService, ExcelService, etc.
 │   ├── network/            # Dio client, RetryInterceptor
 │   ├── providers/          # Shared Riverpod providers (auth, scan balance)
-│   └── utils/              # ReceiptSectionResolver, helpers
+│   └── utils/              # ReceiptSectionResolver, chart_utils (niceChartInterval), helpers
 ├── di/                     # GetIt locators (minimal / full / data / presentation)
 ├── features/
 │   ├── login/              # Riverpod auth controller, Google + Apple sign-in
@@ -74,6 +76,7 @@ Each feature follows `data / domain / presentation` separation with its own repo
 **State management mix:**
 - **BLoC** — complex async flows (`ImageCaptureBloc`, `ReceiptScanBloc`, `ReceiptsOverviewBloc`)
 - **Riverpod** — auth state, scan balance, plans, theme, locale
+- **Provider** — legacy (theme/locale shim)
 
 ---
 
@@ -150,7 +153,7 @@ flutter analyze
 
 ## Firebase
 
-The app uses a Firebase project for prod and a separate project for dev. Configuration is managed via flavors:
+The app uses a single Firebase project (`treceiptpro-production`) for prod and a separate project for dev. Configuration is managed via flavors:
 
 ```
 android/app/src/dev/google-services.json   ← dev flavor
@@ -167,7 +170,10 @@ Scan packs are defined in `data/models/scan_pack.dart` and fetched from Google P
 
 - Listing available plans
 - Initiating purchase via `in_app_purchase`
+- Detecting and recovering pending/interrupted purchases
 - Crediting scan balance in Firestore on successful transaction
+- Tracking cumulative spend — `totalAmountSpent` is incremented atomically in `credits/current` alongside `availableScans` inside the `verifyPurchase` Cloud Function, guarded by the existing idempotency check so double-grants are impossible
+- `ScanBalance` model exposes `availableScans`, `usedScans`, `totalScans`, and `totalAmountSpent`; surfaced in both the scan plan card and the profile stat box
 
 ---
 
@@ -179,6 +185,7 @@ Scan packs are defined in `data/models/scan_pack.dart` and fetched from Google P
 | `prod` | `com.receipts.treceipts_pro` | TReceipt |
 
 Min SDK: Android 26 · Target SDK: 36 · JVM target: 17
+
 
 <table>
   <tr>

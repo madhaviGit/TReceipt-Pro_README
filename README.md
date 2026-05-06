@@ -195,7 +195,7 @@ Min SDK: Android 26 · Target SDK: 36 · JVM target: 17
        &nbsp;&nbsp;&nbsp;
     <td align="center"><img width="100" height="200" alt="Scan_Page" src="https://github.com/user-attachments/assets/eff1feff-58be-4656-b3d6-bd5ab7e1c400" /><br/>Scan Page</td>
  &nbsp;&nbsp;&nbsp;
-    <td align="center"><img width="100" height="200" alt="User_Page" src="https://github.com/user-attachments/assets/cbcecb66-0658-4266-8f78-b10a052155c2" /><br/>Receipts_Page</td>
+    <td align="center"><img width="100" height="200" alt="Receopts_Page" src="https://github.com/user-attachments/assets/cbcecb66-0658-4266-8f78-b10a052155c2" /><br/>Receipts Page</td>
  &nbsp;&nbsp;&nbsp;
     <td align="center"><img width="100" height="200" alt="User_Page" src="https://github.com/user-attachments/assets/a27ede1c-a9d8-475c-b680-2df679fd556f" /><br/>User Page</td>
      
